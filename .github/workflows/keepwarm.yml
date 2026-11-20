@@ -1,0 +1,19 @@
+# Keeps the free Azure App Service (F1) app loaded so visitors do not wait for a cold start.
+# Lives in a separate PUBLIC repo (public repos get unlimited free Actions minutes). Contains no secrets: the URL is public anyway.
+name: keep-warm
+on:
+  schedule:
+    - cron: "*/10 * * * *"     # GitHub may delay scheduled runs by a few minutes; F1 unloads after ~20 min idle
+  workflow_dispatch: {}
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Ping the app (retries cover a cold start)
+        run: |
+          for i in 1 2 3; do
+            if curl -fsS -m 90 -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" https://zamp-invoice-ps1.azurewebsites.net/api/health; then exit 0; fi
+            sleep 10
+          done
+          echo "app did not answer"; exit 1
